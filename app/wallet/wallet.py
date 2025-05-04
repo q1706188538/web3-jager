@@ -16,6 +16,8 @@ class Wallet:
             self.chain_id = chain_id or int(os.getenv('BSC_CHAIN_ID'))
 
         self.w3 = Web3(Web3.HTTPProvider(self.rpc_url))
+        # 不再尝试添加POA中间件，因为本地环境不需要也能正常工作
+
         if not self.w3.is_connected():
             raise ConnectionError(f"无法连接到BSC网络: {self.rpc_url}")
 

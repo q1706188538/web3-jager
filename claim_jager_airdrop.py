@@ -8,8 +8,7 @@ import os
 import sys
 from dotenv import load_dotenv
 
-# 不再尝试导入POA中间件，直接使用原始交易数据
-HAS_POA_MIDDLEWARE = False
+# 不再尝试导入POA中间件，因为本地环境不需要也能正常工作
 
 # 加载环境变量
 load_dotenv()
@@ -31,8 +30,8 @@ class JagerAirdropClaimer:
         self.bnb_gas_limit = 21000  # BNB转账的默认gas限制
         self.claim_gas_limit = 1000000  # 空投领取的默认gas限制
 
-        # 不再尝试添加POA中间件，直接使用原始交易数据
-        print("无法导入POA中间件，将尝试直接处理交易数据")
+        # 不使用POA中间件
+        print("不使用POA中间件，直接处理交易数据")
 
         # 初始化API数据
         self.api_amount = int(7300000000 * 10**18)  # 默认使用正确的空投数量

@@ -10,25 +10,8 @@ import sys
 from contextlib import redirect_stdout
 from claim_jager_airdrop import JagerAirdropClaimer
 
-# 尝试导入POA中间件 - 这只是为了消除警告，实际上我们在JagerAirdropClaimer中已经处理了
-try:
-    from web3.middleware import geth_poa_middleware
-    print("成功导入POA中间件")
-except ImportError:
-    try:
-        from web3.middleware.geth_poa import geth_poa_middleware
-        print("成功导入POA中间件 (从geth_poa)")
-    except ImportError:
-        try:
-            from web3.middleware.validation import geth_poa_middleware
-            print("成功导入POA中间件 (从validation)")
-        except ImportError:
-            try:
-                # 尝试直接从eth_utils导入
-                from eth_utils import decode_hex
-                print("无法导入POA中间件，但成功导入了eth_utils")
-            except ImportError:
-                print("警告: 无法导入POA中间件，这可能会影响与BSC链的交互")
+# 不再尝试导入POA中间件，因为本地环境不需要也能正常工作
+# 这样可以避免在服务器环境中因导入失败而产生警告
 
 # 加载环境变量
 load_dotenv()
