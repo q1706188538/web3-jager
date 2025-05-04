@@ -9,11 +9,11 @@ class Wallet:
     def __init__(self, rpc_url=None, chain_id=None, use_testnet=False):
         """初始化钱包，连接到BSC网络"""
         if use_testnet:
-            self.rpc_url = os.getenv('BSC_TESTNET_RPC_URL')
-            self.chain_id = int(os.getenv('BSC_TESTNET_CHAIN_ID'))
+            self.rpc_url = os.getenv('BSC_TESTNET_RPC_URL', 'https://data-seed-prebsc-1-s1.binance.org:8545/')
+            self.chain_id = int(os.getenv('BSC_TESTNET_CHAIN_ID', '97'))
         else:
-            self.rpc_url = rpc_url or os.getenv('BSC_RPC_URL')
-            self.chain_id = chain_id or int(os.getenv('BSC_CHAIN_ID'))
+            self.rpc_url = rpc_url or os.getenv('BSC_RPC_URL', 'https://bsc-dataseed.binance.org/')
+            self.chain_id = chain_id or int(os.getenv('BSC_CHAIN_ID', '56'))
 
         self.w3 = Web3(Web3.HTTPProvider(self.rpc_url))
         # 不再尝试添加POA中间件，因为本地环境不需要也能正常工作
