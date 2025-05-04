@@ -119,6 +119,7 @@
 
         <div class="mb-3 text-center">
             <a href="/transfer" class="btn btn-outline-primary">代币转账</a>
+            <a href="/balance-checker" class="btn btn-outline-primary ms-2">批量查询BNB余额</a>
             <a href="/" class="btn btn-outline-secondary ms-2">返回首页</a>
         </div>
 
@@ -163,11 +164,11 @@
                             <div class="mb-3">
                                 <label for="bnbReceiverAddress" class="form-label">BNB 接收地址</label>
                                 <input type="text" class="form-control" id="bnbReceiverAddress" placeholder="输入接收 BNB 的地址">
-                                <div class="form-text">转出 Jager 代币后，将自动转出全部 BNB 到此地址（保留少量用于 Gas）。</div>
+                                <div class="form-text">转出 Jager 代币后，将自动转出全部 BNB 到此地址（默认会自动扣除 gas 费，尽可能转出所有 BNB）。</div>
                             </div>
                             <div class="mb-3">
                                 <label for="reserveBnbAmount" class="form-label">保留 BNB 数量</label>
-                                <input type="number" class="form-control" id="reserveBnbAmount" placeholder="默认为 0.005 BNB" value="0.005" step="0.0001" min="0">
+                                <input type="number" class="form-control" id="reserveBnbAmount" placeholder="默认为 0 BNB" value="0" step="0.0001" min="0">
                                 <div class="form-text">转出 BNB 时保留的数量，用于支付 Gas 费用。设置为 0 时，系统会自动从转账金额中扣除 gas 费（含 5% 安全边际），尽可能转出钱包里的所有 BNB。</div>
                             </div>
 
