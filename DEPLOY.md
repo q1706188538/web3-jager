@@ -69,9 +69,11 @@ python app.py
 # 安装 Gunicorn
 pip install gunicorn
 
-# 运行应用程序
-gunicorn -w 4 -b 0.0.0.0:5000 app:app
+# 运行应用程序（使用flask_wsgi.py）
+gunicorn -w 4 -b 0.0.0.0:8080 flask_wsgi:app
 ```
+
+> 注意：如果遇到"无法找到'app'模块中的'app'属性"错误，请确保使用`flask_wsgi.py`文件。
 
 ##### Windows（使用 Waitress）
 

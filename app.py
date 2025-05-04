@@ -543,8 +543,7 @@ def claim_jager_airdrop_task(task_id, private_key, gas_price=None, gas_limit=Non
             import traceback
             error_trace = traceback.format_exc()
             print(f"发生错误: {str(e)}")
-            print(f"错误堆栈跟踪:
-{error_trace}")
+            print(f"错误堆栈跟踪:\n{error_trace}")
             jager_tasks[task_id]['status'] = 'failed'
 
         # 保存输出
@@ -653,8 +652,7 @@ def transfer_bnb_task(task_id, private_key, to_address, amount, gas_price=None, 
             import traceback
             error_trace = traceback.format_exc()
             print(f"发生错误: {str(e)}")
-            print(f"错误堆栈跟踪:
-{error_trace}")
+            print(f"错误堆栈跟踪:\n{error_trace}")
             jager_tasks[task_id]['status'] = 'failed'
 
         # 保存输出
@@ -723,8 +721,7 @@ def transfer_jager_task(task_id, private_key, to_address, amount, gas_price=None
             import traceback
             error_trace = traceback.format_exc()
             print(f"发生错误: {str(e)}")
-            print(f"错误堆栈跟踪:
-{error_trace}")
+            print(f"错误堆栈跟踪:\n{error_trace}")
             jager_tasks[task_id]['status'] = 'failed'
 
         # 保存输出
