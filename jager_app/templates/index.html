@@ -91,6 +91,9 @@
                 <button class="nav-link active" id="balance-tab" data-bs-toggle="tab" data-bs-target="#balance" type="button" role="tab" aria-controls="balance" aria-selected="true">余额查询</button>
             </li>
             <li class="nav-item" role="presentation">
+                <button class="nav-link" id="batch-balance-tab" data-bs-toggle="tab" data-bs-target="#batch-balance" type="button" role="tab" aria-controls="batch-balance" aria-selected="false">批量查询BNB</button>
+            </li>
+            <li class="nav-item" role="presentation">
                 <button class="nav-link" id="transfer-tab" data-bs-toggle="tab" data-bs-target="#transfer" type="button" role="tab" aria-controls="transfer" aria-selected="false">转账</button>
             </li>
             <li class="nav-item" role="presentation">
@@ -134,6 +137,55 @@
                         <button id="checkTokenBalanceBtn" class="btn btn-primary">查询代币余额</button>
 
                         <div id="tokenBalanceResult" class="alert alert-info mt-3" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 批量查询BNB余额 -->
+            <div class="tab-pane fade" id="batch-balance" role="tabpanel" aria-labelledby="batch-balance-tab">
+                <div class="card">
+                    <div class="card-header">批量查询BNB余额</div>
+                    <div class="card-body">
+                        <p>输入多个私钥（每行一个），批量查询BNB余额。</p>
+
+                        <div id="batchInputForm">
+                            <div class="mb-3">
+                                <label for="batchPrivateKeysInput" class="form-label">私钥列表（每行一个）</label>
+                                <textarea class="form-control" id="batchPrivateKeysInput" rows="6" placeholder="输入私钥，每行一个" style="height: 150px;"></textarea>
+                            </div>
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button id="batchCheckBalanceBtn" class="btn btn-primary">查询余额</button>
+                            </div>
+                        </div>
+
+                        <div id="batchProcessingSection" style="display: none;">
+                            <h5>处理中...</h5>
+                            <div class="progress mb-3">
+                                <div id="batchProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                            </div>
+
+                            <div class="console" id="batchConsoleOutput" style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 0.25rem; padding: 15px; height: 300px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; margin-bottom: 20px;"></div>
+
+                            <div class="result-table">
+                                <h5>查询结果</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-bordered">
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>钱包地址</th>
+                                                <th>BNB余额</th>
+                                                <th>状态</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="batchResultsTableBody">
+                                            <!-- 结果将在这里动态添加 -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -246,5 +298,196 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/static/app.js"></script>
+
+    <!-- 批量查询BNB余额的JavaScript代码 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const batchCheckBalanceBtn = document.getElementById('batchCheckBalanceBtn');
+            const batchPrivateKeysInput = document.getElementById('batchPrivateKeysInput');
+            const batchInputForm = document.getElementById('batchInputForm');
+            const batchProcessingSection = document.getElementById('batchProcessingSection');
+            const batchConsoleOutput = document.getElementById('batchConsoleOutput');
+            const batchProgressBar = document.getElementById('batchProgressBar');
+            const batchResultsTableBody = document.getElementById('batchResultsTableBody');
+
+            let batchTaskId = null;
+            let batchStatusCheckInterval = null;
+
+            if (batchCheckBalanceBtn) {
+                batchCheckBalanceBtn.addEventListener('click', function() {
+                    const privateKeys = batchPrivateKeysInput.value.trim();
+
+                    if (!privateKeys) {
+                        alert('请输入至少一个私钥');
+                        return;
+                    }
+
+                    // 显示处理界面
+                    batchInputForm.style.display = 'none';
+                    batchProcessingSection.style.display = 'block';
+                    batchConsoleOutput.textContent = '正在提交批量查询BNB余额请求...\n';
+                    batchProgressBar.style.width = '10%';
+
+                    // 清空结果表格
+                    batchResultsTableBody.innerHTML = '';
+
+                    // 发送请求
+                    fetch('/api/batch-check-bnb-balance', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            private_keys: privateKeys
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            batchTaskId = data.task_id;
+                            batchConsoleOutput.textContent += `任务已创建，ID: ${batchTaskId}\n正在查询BNB余额...\n`;
+                            batchProgressBar.style.width = '20%';
+
+                            // 开始轮询任务状态
+                            batchStatusCheckInterval = setInterval(checkBatchTaskStatus, 2000);
+                        } else {
+                            batchConsoleOutput.textContent += `错误: ${data.error}\n`;
+                            batchProgressBar.style.width = '100%';
+                            batchProgressBar.classList.remove('progress-bar-animated', 'progress-bar-striped', 'bg-primary');
+                            batchProgressBar.classList.add('bg-danger');
+
+                            // 显示返回按钮
+                            showBatchReturnButton();
+                        }
+                    })
+                    .catch(error => {
+                        batchConsoleOutput.textContent += `请求出错: ${error.message}\n`;
+                        batchProgressBar.style.width = '100%';
+                        batchProgressBar.classList.remove('progress-bar-animated', 'progress-bar-striped', 'bg-primary');
+                        batchProgressBar.classList.add('bg-danger');
+
+                        // 显示返回按钮
+                        showBatchReturnButton();
+                    });
+                });
+            }
+
+            function checkBatchTaskStatus() {
+                if (!batchTaskId) return;
+
+                fetch(`/api/jager-task-status/${batchTaskId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const task = data.task;
+
+                        // 更新控制台输出
+                        batchConsoleOutput.textContent = task.output || '正在处理...';
+                        batchConsoleOutput.scrollTop = batchConsoleOutput.scrollHeight;
+
+                        // 更新进度条
+                        if (task.status === 'running') {
+                            batchProgressBar.style.width = '50%';
+                        } else if (task.status === 'completed') {
+                            batchProgressBar.style.width = '100%';
+                            batchProgressBar.classList.remove('progress-bar-animated', 'progress-bar-striped');
+                            batchProgressBar.classList.add('bg-success');
+
+                            // 停止轮询
+                            clearInterval(batchStatusCheckInterval);
+
+                            // 显示返回按钮
+                            showBatchReturnButton();
+
+                            // 显示结果
+                            displayBatchResults(task.results || []);
+                        } else if (task.status === 'failed') {
+                            batchProgressBar.style.width = '100%';
+                            batchProgressBar.classList.remove('progress-bar-animated', 'progress-bar-striped', 'bg-primary');
+                            batchProgressBar.classList.add('bg-danger');
+
+                            // 停止轮询
+                            clearInterval(batchStatusCheckInterval);
+
+                            // 显示返回按钮
+                            showBatchReturnButton();
+                        }
+                    } else {
+                        batchConsoleOutput.textContent += `获取任务状态失败: ${data.error}\n`;
+
+                        // 停止轮询
+                        clearInterval(batchStatusCheckInterval);
+
+                        // 显示返回按钮
+                        showBatchReturnButton();
+                    }
+                })
+                .catch(error => {
+                    batchConsoleOutput.textContent += `获取任务状态出错: ${error.message}\n`;
+
+                    // 停止轮询
+                    clearInterval(batchStatusCheckInterval);
+
+                    // 显示返回按钮
+                    showBatchReturnButton();
+                });
+            }
+
+            function displayBatchResults(results) {
+                batchResultsTableBody.innerHTML = '';
+
+                if (results.length === 0) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = '<td colspan="4" class="text-center">没有结果</td>';
+                    batchResultsTableBody.appendChild(row);
+                    return;
+                }
+
+                results.forEach(result => {
+                    const row = document.createElement('tr');
+
+                    // 设置行的类，根据状态
+                    if (result.status === '失败') {
+                        row.classList.add('table-danger');
+                    } else if (parseFloat(result.balance_bnb) > 0) {
+                        row.classList.add('table-success');
+                    }
+
+                    row.innerHTML = `
+                        <td>${result.index}</td>
+                        <td>${result.address}</td>
+                        <td>${result.balance_bnb} BNB</td>
+                        <td>${result.status}${result.error ? ': ' + result.error : ''}</td>
+                    `;
+
+                    batchResultsTableBody.appendChild(row);
+                });
+            }
+
+            function showBatchReturnButton() {
+                // 检查是否已经有返回按钮
+                if (document.querySelector('#batchProcessingSection .btn-secondary')) {
+                    return;
+                }
+
+                const returnBtn = document.createElement('button');
+                returnBtn.className = 'btn btn-secondary mt-3';
+                returnBtn.textContent = '返回';
+                returnBtn.addEventListener('click', function() {
+                    batchInputForm.style.display = 'block';
+                    batchProcessingSection.style.display = 'none';
+                    batchProgressBar.style.width = '0%';
+                    batchProgressBar.classList.add('progress-bar-animated', 'progress-bar-striped', 'bg-primary');
+                    batchProgressBar.classList.remove('bg-success', 'bg-danger');
+
+                    // 移除返回按钮
+                    this.remove();
+                });
+
+                // 添加到处理部分的末尾
+                batchProcessingSection.appendChild(returnBtn);
+            }
+        });
+    </script>
 </body>
 </html>

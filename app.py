@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, redirect
 from jager_app.wallet import Wallet
 from dotenv import load_dotenv
 import os
@@ -998,6 +998,127 @@ def transfer_jager_async():
         return jsonify({'success': True, 'task_id': task_id})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+# 批量查询BNB余额的后台任务
+def batch_check_bnb_balance_task(task_id, private_keys):
+    """后台任务，用于批量查询BNB余额"""
+    # 捕获输出
+    output_buffer = io.StringIO()
+    with redirect_stdout(output_buffer):
+        try:
+            print(f"开始批量查询BNB余额，任务ID: {task_id}")
+            print(f"共有 {len(private_keys)} 个私钥需要查询")
+
+            results = []
+
+            for i, private_key in enumerate(private_keys):
+                try:
+                    print(f"\n处理第 {i+1}/{len(private_keys)} 个私钥...")
+
+                    # 检查私钥
+                    if not private_key:
+                        print("错误: 私钥为空，跳过")
+                        results.append({
+                            'index': i+1,
+                            'address': '未知',
+                            'balance_bnb': 0,
+                            'status': '失败',
+                            'error': '私钥为空'
+                        })
+                        continue
+
+                    # 创建钱包实例
+                    wallet = Wallet(use_testnet=False)
+
+                    # 导入钱包
+                    try:
+                        wallet_data = wallet.import_wallet(private_key)
+                        address = wallet_data['address']
+                        print(f"钱包导入成功，地址: {address}")
+
+                        # 获取BNB余额
+                        balance_info = wallet.get_bnb_balance()
+                        balance_bnb = float(balance_info['balance_bnb'])
+                        print(f"BNB余额: {balance_bnb}")
+
+                        results.append({
+                            'index': i+1,
+                            'address': address,
+                            'balance_bnb': balance_bnb,
+                            'status': '成功',
+                            'error': ''
+                        })
+                    except Exception as e:
+                        print(f"处理私钥时出错: {str(e)}")
+                        results.append({
+                            'index': i+1,
+                            'address': '未知',
+                            'balance_bnb': 0,
+                            'status': '失败',
+                            'error': str(e)
+                        })
+                except Exception as e:
+                    print(f"处理私钥时出错: {str(e)}")
+                    results.append({
+                        'index': i+1,
+                        'address': '未知',
+                        'balance_bnb': 0,
+                        'status': '失败',
+                        'error': str(e)
+                    })
+
+            print(f"\n批量查询BNB余额完成，共处理 {len(private_keys)} 个私钥")
+            jager_tasks[task_id]['results'] = results
+            jager_tasks[task_id]['status'] = 'completed'
+        except Exception as e:
+            import traceback
+            error_trace = traceback.format_exc()
+            print(f"发生错误: {str(e)}")
+            print(f"错误堆栈跟踪:\n{error_trace}")
+            jager_tasks[task_id]['status'] = 'failed'
+
+        # 保存输出
+        jager_tasks[task_id]['output'] = output_buffer.getvalue()
+
+@app.route('/api/batch-check-bnb-balance', methods=['POST'])
+def batch_check_bnb_balance():
+    """批量查询BNB余额"""
+    try:
+        # 获取私钥列表
+        private_keys_text = request.json.get('private_keys', '')
+
+        if not private_keys_text:
+            return jsonify({'success': False, 'error': '请提供私钥列表'}), 400
+
+        # 分割私钥（按行分割）
+        private_keys = [key.strip() for key in private_keys_text.split('\n') if key.strip()]
+
+        if not private_keys:
+            return jsonify({'success': False, 'error': '没有有效的私钥'}), 400
+
+        # 创建任务ID
+        task_id = str(int(time.time()))
+
+        # 初始化任务状态
+        jager_tasks[task_id] = {
+            'status': 'running',
+            'output': '',
+            'results': []
+        }
+
+        # 启动后台任务
+        thread = threading.Thread(target=batch_check_bnb_balance_task, args=(task_id, private_keys))
+        thread.daemon = True
+        thread.start()
+
+        return jsonify({'success': True, 'task_id': task_id})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/balance-checker')
+def balance_checker_index():
+    """重定向到首页的批量查询BNB余额标签页"""
+    return redirect('/#batch-balance')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8081, debug=True)
