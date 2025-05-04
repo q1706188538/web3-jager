@@ -1,4 +1,4 @@
-from app.wallet import Wallet
+from jager_app.wallet import Wallet
 from web3 import Web3
 import argparse
 import json

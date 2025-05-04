@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jager 空投领取</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 800px;
+        }
+        .card {
+            margin-bottom: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .card-header {
+            background-color: #6c757d;
+            color: white;
+            font-weight: bold;
+            border-radius: 10px 10px 0 0 !important;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+        .btn-primary:hover {
+            background-color: #0069d9;
+            border-color: #0062cc;
+        }
+        .console {
+            background-color: #212529;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            height: 600px; /* 增加高度 */
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            border: 1px solid #444;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            font-size: 14px; /* 调整字体大小 */
+            line-height: 1.4; /* 调整行高 */
+        }
+        /* 添加一些控制台文本样式 */
+        .console .error {
+            color: #ff5555;
+            font-weight: bold;
+        }
+        .console .success {
+            color: #55ff55;
+            font-weight: bold;
+        }
+        .console .warning {
+            color: #ffff55;
+            font-weight: bold;
+        }
+        .console .info {
+            color: #5555ff;
+            font-weight: bold;
+        }
+        .status-running {
+            color: #ffc107;
+            font-weight: bold;
+        }
+        .status-completed {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .status-failed {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .progress {
+            height: 25px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .progress-bar {
+            font-weight: bold;
+            line-height: 25px;
+            background-color: #007bff;
+            background-image: linear-gradient(45deg, rgba(255,255,255,.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.15) 50%, rgba(255,255,255,.15) 75%, transparent 75%, transparent);
+            background-size: 1rem 1rem;
+            animation: progress-bar-stripes 1s linear infinite;
+        }
+        .badge {
+            font-size: 1rem;
+            padding: 0.5rem 0.7rem;
+        }
+        .table th, .table td {
+            vertical-align: middle;
+            padding: 0.75rem;
+        }
+        #batchResultsTable tr:hover {
+            background-color: rgba(0,0,0,0.05);
+        }
+        #batchResultsTable td {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        @keyframes progress-bar-stripes {
+            from { background-position: 1rem 0; }
+            to { background-position: 0 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">Jager 空投领取</h1>
+
+        <div class="mb-3 text-center">
+            <a href="/transfer" class="btn btn-outline-primary">代币转账</a>
+            <a href="/" class="btn btn-outline-secondary ms-2">返回首页</a>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                输入私钥领取空投
+            </div>
+            <div class="card-body">
+                <form id="claimForm">
+                    <div class="mb-3">
+                        <label for="privateKey" class="form-label">私钥（每行一个，支持批量领取）</label>
+                        <textarea class="form-control" id="privateKey" rows="5" placeholder="输入您的私钥，每行一个" required></textarea>
+                        <div class="form-text text-danger">警告：请确保您在安全的环境中输入私钥，不要在公共场所或不信任的设备上操作。</div>
+                        <div class="form-text">支持批量领取：每行输入一个私钥，系统将依次处理。</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="gasPrice" class="form-label">Gas 价格 (Gwei)</label>
+                        <input type="number" class="form-control" id="gasPrice" placeholder="默认为 3 Gwei">
+                        <div class="form-text">可选：设置 Gas 价格，默认为 3 Gwei。</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="gasLimit" class="form-label">Gas 限制</label>
+                        <input type="number" class="form-control" id="gasLimit" placeholder="默认为 1000000" value="1000000">
+                        <div class="form-text">可选：设置 Gas 限制，默认为 1,000,000。</div>
+                    </div>
+
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="enableAutoTransfer">
+                                <label class="form-check-label" for="enableAutoTransfer">
+                                    启用自动转账功能（领取成功后自动转出代币和BNB）
+                                </label>
+                            </div>
+                        </div>
+                        <div class="card-body" id="autoTransferOptions" style="display: none;">
+                            <div class="mb-3">
+                                <label for="jagerReceiverAddress" class="form-label">Jager 代币接收地址</label>
+                                <input type="text" class="form-control" id="jagerReceiverAddress" placeholder="输入接收 Jager 代币的地址">
+                                <div class="form-text">领取成功后，将自动转出全部 Jager 代币到此地址。</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="bnbReceiverAddress" class="form-label">BNB 接收地址</label>
+                                <input type="text" class="form-control" id="bnbReceiverAddress" placeholder="输入接收 BNB 的地址">
+                                <div class="form-text">转出 Jager 代币后，将自动转出全部 BNB 到此地址（保留少量用于 Gas）。</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="reserveBnbAmount" class="form-label">保留 BNB 数量</label>
+                                <input type="number" class="form-control" id="reserveBnbAmount" placeholder="默认为 0.005 BNB" value="0.005" step="0.0001" min="0">
+                                <div class="form-text">转出 BNB 时保留的数量，用于支付 Gas 费用。设置为 0 时，系统会自动从转账金额中扣除 gas 费（含 5% 安全边际），尽可能转出钱包里的所有 BNB。</div>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="enableBnbChainTransfer" checked>
+                                <label class="form-check-label" for="enableBnbChainTransfer">
+                                    启用 BNB 链式转账（将 BNB 转给下一个待处理的钱包）
+                                </label>
+                                <div class="form-text">
+                                    启用后，系统会将当前钱包的 BNB 转给批量处理列表中的下一个钱包，而不是转给上面指定的 BNB 接收地址。
+                                    <strong>注意：</strong> 只有在批量处理多个钱包时，且当前不是最后一个钱包时，此选项才会生效。
+                                    如果是最后一个钱包或只处理单个钱包，系统仍会将 BNB 转给上面指定的 BNB 接收地址。
+                                </div>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="transferBnbOnFailure" checked>
+                                <label class="form-check-label" for="transferBnbOnFailure">
+                                    领取失败时也转移 BNB
+                                </label>
+                                <div class="form-text">
+                                    启用后，即使领取空投失败，也会将 BNB 转给下一个钱包或指定的 BNB 接收地址（取决于上面的链式转账设置）。
+                                    这对于确保批量处理中的每个钱包都有足够的 BNB 来支付 Gas 费用非常有用。
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="claimButton">领取空投</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card" id="resultCard" style="display: none;">
+            <div class="card-header">
+                领取结果
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="mb-0">批量处理进度</h5>
+                        <span class="badge bg-primary" id="batchProgress">0/0</span>
+                    </div>
+                    <div class="progress mb-3">
+                        <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <p>当前处理钱包: <span id="walletAddress">-</span></p>
+                    <p>状态: <span id="taskStatus">-</span></p>
+                    <p>领取数量: <span id="receivedTokens">-</span> JAGER</p>
+                </div>
+
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label mb-0">控制台输出</label>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="clearConsoleBtn">清除日志</button>
+                    </div>
+                    <div class="console" id="consoleOutput"></div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">批量处理结果摘要</label>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>钱包地址</th>
+                                    <th>状态</th>
+                                    <th>领取数量</th>
+                                </tr>
+                            </thead>
+                            <tbody id="batchResultsTable">
+                                <!-- 结果将在这里动态添加 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 处理自动转账选项的显示/隐藏
+        document.getElementById('enableAutoTransfer').addEventListener('change', function() {
+            const autoTransferOptions = document.getElementById('autoTransferOptions');
+            if (this.checked) {
+                autoTransferOptions.style.display = 'block';
+            } else {
+                autoTransferOptions.style.display = 'none';
+            }
+        });
+
+        // 清除日志按钮事件处理
+        document.getElementById('clearConsoleBtn').addEventListener('click', function() {
+            if (confirm('确定要清除所有日志吗？此操作不可撤销。')) {
+                document.getElementById('consoleOutput').textContent = '';
+            }
+        });
+
+        // 全局变量，用于存储批量处理的状态
+        let batchProcessing = {
+            privateKeys: [],
+            currentIndex: 0,
+            totalKeys: 0,
+            results: [],
+            inProgress: false
+        };
+
+        document.getElementById('claimForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            // 获取并处理私钥列表
+            const privateKeysText = document.getElementById('privateKey').value.trim();
+            if (!privateKeysText) {
+                alert('请输入至少一个私钥');
+                return;
+            }
+
+            // 分割私钥（按行分割，并过滤空行）
+            const privateKeys = privateKeysText.split('\n')
+                .map(key => key.trim())
+                .filter(key => key.length > 0);
+
+            if (privateKeys.length === 0) {
+                alert('请输入至少一个有效的私钥');
+                return;
+            }
+
+            const gasPrice = document.getElementById('gasPrice').value;
+            const gasLimit = document.getElementById('gasLimit').value;
+
+            // 获取自动转账相关参数
+            const enableAutoTransfer = document.getElementById('enableAutoTransfer').checked;
+            const jagerReceiverAddress = document.getElementById('jagerReceiverAddress').value;
+            const bnbReceiverAddress = document.getElementById('bnbReceiverAddress').value;
+            const reserveBnbAmount = document.getElementById('reserveBnbAmount').value;
+            const enableBnbChainTransfer = document.getElementById('enableBnbChainTransfer').checked;
+            const transferBnbOnFailure = document.getElementById('transferBnbOnFailure').checked;
+
+            // 如果启用了自动转账，但没有填写接收地址，则提示用户
+            if (enableAutoTransfer) {
+                if (!jagerReceiverAddress) {
+                    alert('请输入 Jager 代币接收地址');
+                    return;
+                }
+                if (!bnbReceiverAddress) {
+                    alert('请输入 BNB 接收地址');
+                    return;
+                }
+            }
+
+            // 禁用提交按钮
+            const claimButton = document.getElementById('claimButton');
+            claimButton.disabled = true;
+            claimButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 批量处理中...';
+
+            // 显示结果卡片
+            document.getElementById('resultCard').style.display = 'block';
+            document.getElementById('walletAddress').textContent = '-';
+            document.getElementById('taskStatus').textContent = '准备批量处理...';
+            document.getElementById('taskStatus').className = 'status-running';
+            document.getElementById('receivedTokens').textContent = '-';
+            const consoleOutput = document.getElementById('consoleOutput');
+            const separator = '='.repeat(50);
+            const startTime = new Date().toLocaleString();
+            consoleOutput.textContent = `${separator}\n开始批量处理 - ${startTime}\n${separator}`;
+
+            // 清空结果表格
+            document.getElementById('batchResultsTable').innerHTML = '';
+
+            // 初始化进度条
+            document.getElementById('batchProgress').textContent = `0/${privateKeys.length}`;
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.width = '0%';
+            progressBar.textContent = '0%';
+            progressBar.setAttribute('aria-valuenow', 0);
+            progressBar.setAttribute('aria-valuemax', privateKeys.length);
+
+            // 初始化批量处理状态
+            batchProcessing = {
+                privateKeys: privateKeys,
+                currentIndex: 0,
+                totalKeys: privateKeys.length,
+                results: [],
+                inProgress: true,
+                gasPrice: gasPrice,
+                gasLimit: gasLimit,
+                enableAutoTransfer: enableAutoTransfer,
+                jagerReceiverAddress: jagerReceiverAddress,
+                bnbReceiverAddress: bnbReceiverAddress,
+                reserveBnbAmount: reserveBnbAmount,
+                enableBnbChainTransfer: enableBnbChainTransfer,
+                transferBnbOnFailure: transferBnbOnFailure
+            };
+
+            // 开始处理第一个私钥
+            processNextPrivateKey();
+        });
+
+        // 处理下一个私钥
+        function processNextPrivateKey() {
+            if (!batchProcessing.inProgress || batchProcessing.currentIndex >= batchProcessing.totalKeys) {
+                // 批量处理完成
+                finishBatchProcessing();
+                return;
+            }
+
+            const currentIndex = batchProcessing.currentIndex;
+            const privateKey = batchProcessing.privateKeys[currentIndex];
+
+            // 更新进度显示
+            document.getElementById('batchProgress').textContent = `${currentIndex + 1}/${batchProcessing.totalKeys}`;
+            const progressPercent = Math.round(((currentIndex + 1) / batchProcessing.totalKeys) * 100);
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.width = `${progressPercent}%`;
+            progressBar.textContent = `${progressPercent}%`;
+            progressBar.setAttribute('aria-valuenow', currentIndex + 1);
+
+            // 更新控制台输出 - 添加分隔线和处理信息
+            const consoleOutput = document.getElementById('consoleOutput');
+            const separator = '='.repeat(50);
+            const timestamp = new Date().toLocaleTimeString();
+
+            // 如果是第一个私钥，直接添加到现有日志后面
+            if (currentIndex === 0) {
+                consoleOutput.textContent += `\n\n${separator}\n[${timestamp}] 处理私钥 ${currentIndex + 1}/${batchProcessing.totalKeys}\n${separator}\n`;
+            } else {
+                // 查找上一个私钥的处理记录
+                const previousKeyMarker = `处理私钥 ${currentIndex}/${batchProcessing.totalKeys}`;
+                const markerIndex = consoleOutput.textContent.indexOf(previousKeyMarker);
+
+                if (markerIndex !== -1) {
+                    // 找到了上一个私钥的处理记录，在其后添加新的分隔线
+                    consoleOutput.textContent += `\n\n${separator}\n[${timestamp}] 处理私钥 ${currentIndex + 1}/${batchProcessing.totalKeys}\n${separator}\n`;
+                } else {
+                    // 没有找到上一个私钥的处理记录，直接添加到末尾
+                    consoleOutput.textContent += `\n\n${separator}\n[${timestamp}] 处理私钥 ${currentIndex + 1}/${batchProcessing.totalKeys}\n${separator}\n`;
+                }
+            }
+
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+
+            // 发送请求
+            fetch('/api/claim-jager', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    private_key: privateKey,
+                    gas_price: batchProcessing.gasPrice || null,
+                    gas_limit: batchProcessing.gasLimit || null,
+                    enable_auto_transfer: batchProcessing.enableAutoTransfer,
+                    jager_receiver_address: batchProcessing.enableAutoTransfer ? batchProcessing.jagerReceiverAddress : null,
+                    bnb_receiver_address: batchProcessing.enableAutoTransfer ? batchProcessing.bnbReceiverAddress : null,
+                    reserve_bnb_amount: batchProcessing.enableAutoTransfer ? batchProcessing.reserveBnbAmount : null,
+                    enable_bnb_chain_transfer: batchProcessing.enableAutoTransfer && batchProcessing.enableBnbChainTransfer,
+                    transfer_bnb_on_failure: batchProcessing.enableAutoTransfer && batchProcessing.transferBnbOnFailure,
+                    next_wallet_private_key: batchProcessing.enableAutoTransfer && batchProcessing.enableBnbChainTransfer &&
+                                            batchProcessing.currentIndex < batchProcessing.totalKeys - 1 ?
+                                            batchProcessing.privateKeys[batchProcessing.currentIndex + 1] : null
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const taskId = data.task_id;
+                    pollTaskStatus(taskId, currentIndex);
+                } else {
+                    // 记录失败结果
+                    batchProcessing.results.push({
+                        index: currentIndex + 1,
+                        address: '未知',
+                        status: '失败',
+                        receivedTokens: 0,
+                        error: data.error
+                    });
+
+                    // 更新控制台输出 - 追加错误信息
+                    const consoleOutput = document.getElementById('consoleOutput');
+                    consoleOutput.textContent += `\n[错误] ${data.error}\n`;
+                    consoleOutput.scrollTop = consoleOutput.scrollHeight;
+
+                    // 添加到结果表格
+                    addResultToTable(currentIndex + 1, '未知', '失败', 0);
+
+                    // 处理下一个私钥
+                    batchProcessing.currentIndex++;
+                    setTimeout(processNextPrivateKey, 1000);
+                }
+            })
+            .catch(error => {
+                // 记录失败结果
+                batchProcessing.results.push({
+                    index: currentIndex + 1,
+                    address: '未知',
+                    status: '失败',
+                    receivedTokens: 0,
+                    error: error.message
+                });
+
+                // 更新控制台输出 - 追加错误信息
+                const consoleOutput = document.getElementById('consoleOutput');
+                consoleOutput.textContent += `\n[错误] ${error.message}\n`;
+                consoleOutput.scrollTop = consoleOutput.scrollHeight;
+
+                // 添加到结果表格
+                addResultToTable(currentIndex + 1, '未知', '失败', 0);
+
+                // 处理下一个私钥
+                batchProcessing.currentIndex++;
+                setTimeout(processNextPrivateKey, 1000);
+            });
+        }
+
+        // 完成批量处理
+        function finishBatchProcessing() {
+            const claimButton = document.getElementById('claimButton');
+            claimButton.disabled = false;
+            claimButton.textContent = '领取空投';
+
+            document.getElementById('taskStatus').textContent = '批量处理完成';
+            document.getElementById('taskStatus').className = 'status-completed';
+
+            // 计算成功和失败的数量
+            const successCount = batchProcessing.results.filter(r => r.status === '完成').length;
+            const failedCount = batchProcessing.results.filter(r => r.status === '失败').length;
+
+            // 计算总共领取的代币数量
+            const totalTokens = batchProcessing.results.reduce((sum, r) => sum + (r.receivedTokens || 0), 0);
+
+            // 更新控制台输出 - 添加批量处理完成的摘要信息
+            const consoleOutput = document.getElementById('consoleOutput');
+            const separator = '='.repeat(50);
+            const timestamp = new Date().toLocaleTimeString();
+
+            // 构建摘要文本
+            let summaryText = `\n\n${separator}\n`;
+            summaryText += `[${timestamp}] 批量处理完成 - 摘要\n`;
+            summaryText += `${separator}\n`;
+            summaryText += `总共处理: ${batchProcessing.totalKeys} 个私钥\n`;
+            summaryText += `成功: ${successCount} 个\n`;
+            summaryText += `失败: ${failedCount} 个\n`;
+            summaryText += `总共领取: ${totalTokens} JAGER\n`;
+            summaryText += `${separator}`;
+
+            // 添加到控制台输出
+            consoleOutput.textContent += summaryText;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+
+            // 重置批量处理状态
+            batchProcessing.inProgress = false;
+        }
+
+        // 添加结果到表格
+        function addResultToTable(index, address, status, receivedTokens) {
+            const table = document.getElementById('batchResultsTable');
+            const row = table.insertRow();
+
+            // 添加单元格
+            const cellIndex = row.insertCell(0);
+            const cellAddress = row.insertCell(1);
+            const cellStatus = row.insertCell(2);
+            const cellTokens = row.insertCell(3);
+
+            // 设置单元格内容
+            cellIndex.textContent = index;
+            cellAddress.textContent = address;
+
+            // 设置状态单元格样式
+            cellStatus.textContent = status;
+            if (status === '完成') {
+                cellStatus.className = 'text-success';
+            } else if (status === '失败') {
+                cellStatus.className = 'text-danger';
+            } else {
+                cellStatus.className = 'text-warning';
+            }
+
+            // 设置代币数量
+            cellTokens.textContent = receivedTokens > 0 ? receivedTokens : '-';
+        }
+
+        function pollTaskStatus(taskId, batchIndex) {
+            const interval = setInterval(() => {
+                fetch(`/api/jager-task-status/${taskId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const task = data.task;
+
+                        // 更新钱包地址
+                        if (task.wallet_address) {
+                            document.getElementById('walletAddress').textContent = task.wallet_address;
+                        }
+
+                        // 更新状态
+                        let statusText = '正在处理...';
+                        let statusClass = 'status-running';
+                        let taskCompleted = false;
+
+                        if (task.status === 'completed') {
+                            statusText = '完成';
+                            statusClass = 'status-completed';
+                            taskCompleted = true;
+                            clearInterval(interval);
+                        } else if (task.status === 'failed') {
+                            statusText = '失败';
+                            statusClass = 'status-failed';
+                            taskCompleted = true;
+                            clearInterval(interval);
+                        }
+
+                        document.getElementById('taskStatus').textContent = statusText;
+                        document.getElementById('taskStatus').className = statusClass;
+
+                        // 更新领取数量
+                        let receivedTokens = 0;
+                        if (task.received_tokens > 0) {
+                            receivedTokens = task.received_tokens;
+                            document.getElementById('receivedTokens').textContent = receivedTokens;
+                        }
+
+                        // 更新控制台输出 - 始终显示完整日志
+                        const consoleOutput = document.getElementById('consoleOutput');
+
+                        // 检查是否有输出
+                        if (task.output && task.output.trim() !== '') {
+                            // 获取当前显示的日志和任务完整日志
+                            const currentDisplayedLog = consoleOutput.textContent || '';
+                            const taskFullLog = task.output;
+
+                            // 如果当前是第一个私钥处理，或者当前显示的日志为空，则直接设置
+                            if (batchIndex === 0 || currentDisplayedLog === '' ||
+                                currentDisplayedLog.includes('开始批量处理') && !currentDisplayedLog.includes('处理私钥')) {
+                                consoleOutput.textContent = taskFullLog;
+                            } else {
+                                // 查找当前处理私钥的分隔标记
+                                const privateKeyMarker = `处理私钥 ${batchIndex + 1}/${batchProcessing.totalKeys}`;
+                                const markerIndex = currentDisplayedLog.indexOf(privateKeyMarker);
+
+                                if (markerIndex !== -1) {
+                                    // 保留之前的日志，替换当前私钥的处理日志
+                                    const previousLogs = currentDisplayedLog.substring(0, markerIndex);
+                                    // 添加一个分隔符
+                                    const separator = '='.repeat(50);
+                                    const timestamp = new Date().toLocaleTimeString();
+                                    // 构建新的日志内容
+                                    consoleOutput.textContent = previousLogs +
+                                        `\n${separator}\n[${timestamp}] 处理私钥 ${batchIndex + 1}/${batchProcessing.totalKeys}\n${separator}\n\n` +
+                                        taskFullLog;
+                                } else {
+                                    // 如果找不到标记，则追加完整日志
+                                    consoleOutput.textContent = currentDisplayedLog + '\n\n' + taskFullLog;
+                                }
+                            }
+                        }
+
+                        // 滚动到底部
+                        consoleOutput.scrollTop = consoleOutput.scrollHeight;
+
+                        // 如果任务完成，处理批量结果
+                        if (taskCompleted && batchProcessing.inProgress) {
+                            // 记录结果
+                            batchProcessing.results.push({
+                                index: batchIndex + 1,
+                                address: task.wallet_address || '未知',
+                                status: statusText,
+                                receivedTokens: receivedTokens
+                            });
+
+                            // 添加到结果表格
+                            addResultToTable(batchIndex + 1, task.wallet_address || '未知', statusText, receivedTokens);
+
+                            // 处理下一个私钥
+                            batchProcessing.currentIndex++;
+                            setTimeout(processNextPrivateKey, 1000);
+                        }
+                    } else {
+                        const consoleOutput = document.getElementById('consoleOutput');
+                        consoleOutput.textContent += '\n[系统错误] 获取任务状态失败: ' + data.error + '\n';
+                        clearInterval(interval);
+
+                        // 记录失败结果
+                        if (batchProcessing.inProgress) {
+                            batchProcessing.results.push({
+                                index: batchIndex + 1,
+                                address: '未知',
+                                status: '失败',
+                                receivedTokens: 0,
+                                error: data.error
+                            });
+
+                            // 添加到结果表格
+                            addResultToTable(batchIndex + 1, '未知', '失败', 0);
+
+                            // 处理下一个私钥
+                            batchProcessing.currentIndex++;
+                            setTimeout(processNextPrivateKey, 1000);
+                        } else {
+                            document.getElementById('claimButton').disabled = false;
+                            document.getElementById('claimButton').textContent = '领取空投';
+                        }
+                    }
+                })
+                .catch(error => {
+                    const consoleOutput = document.getElementById('consoleOutput');
+                    consoleOutput.textContent += '\n[系统错误] 获取任务状态失败: ' + error.message + '\n';
+                    clearInterval(interval);
+
+                    // 记录失败结果
+                    if (batchProcessing.inProgress) {
+                        batchProcessing.results.push({
+                            index: batchIndex + 1,
+                            address: '未知',
+                            status: '失败',
+                            receivedTokens: 0,
+                            error: error.message
+                        });
+
+                        // 添加到结果表格
+                        addResultToTable(batchIndex + 1, '未知', '失败', 0);
+
+                        // 处理下一个私钥
+                        batchProcessing.currentIndex++;
+                        setTimeout(processNextPrivateKey, 1000);
+                    } else {
+                        document.getElementById('claimButton').disabled = false;
+                        document.getElementById('claimButton').textContent = '领取空投';
+                    }
+                });
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

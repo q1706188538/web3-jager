@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, render_template
-from app.wallet import Wallet
+from jager_app.wallet import Wallet
 from dotenv import load_dotenv
 import os
 import json
@@ -16,7 +16,7 @@ from claim_jager_airdrop import JagerAirdropClaimer
 # 加载环境变量
 load_dotenv()
 
-app = Flask(__name__, template_folder='app/templates', static_folder='app/static')
+app = Flask(__name__, template_folder='jager_app/templates', static_folder='jager_app/static')
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret_key')
 
 # 全局钱包实例
@@ -891,4 +891,4 @@ def transfer_jager_async():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=8080, debug=True)
