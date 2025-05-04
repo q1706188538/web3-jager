@@ -47,6 +47,12 @@ class Wallet:
 
     def import_wallet(self, private_key):
         """通过私钥导入钱包"""
+        if private_key is None:
+            raise ValueError("私钥不能为空")
+
+        if not isinstance(private_key, str):
+            raise ValueError(f"私钥必须是字符串，而不是 {type(private_key)}")
+
         if not private_key.startswith('0x'):
             private_key = '0x' + private_key
 

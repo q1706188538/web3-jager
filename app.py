@@ -194,6 +194,33 @@ def claim_jager_airdrop_task(task_id, private_key, gas_price=None, gas_limit=Non
     output_buffer = io.StringIO()
     with redirect_stdout(output_buffer):
         try:
+            # 记录参数信息（不包含私钥内容）
+            print(f"开始处理Jager空投领取任务，任务ID: {task_id}")
+            print(f"参数信息:")
+            print(f"- gas_price: {gas_price}")
+            print(f"- gas_limit: {gas_limit}")
+            print(f"- enable_auto_transfer: {enable_auto_transfer}")
+            print(f"- jager_receiver_address: {jager_receiver_address}")
+            print(f"- bnb_receiver_address: {bnb_receiver_address}")
+            print(f"- reserve_bnb_amount: {reserve_bnb_amount}")
+            print(f"- enable_bnb_chain_transfer: {enable_bnb_chain_transfer}")
+            print(f"- transfer_bnb_on_failure: {transfer_bnb_on_failure}")
+
+            # 检查私钥
+            if private_key is None:
+                print("错误: 私钥为空")
+                jager_tasks[task_id]['status'] = 'failed'
+                jager_tasks[task_id]['output'] = "错误: 私钥为空"
+                return
+
+            print(f"私钥类型: {type(private_key)}")
+            print(f"私钥长度: {len(private_key) if isinstance(private_key, str) else 'N/A'}")
+
+            # 检查链式转账私钥
+            if next_wallet_private_key is not None:
+                print(f"下一个钱包私钥类型: {type(next_wallet_private_key)}")
+                print(f"下一个钱包私钥长度: {len(next_wallet_private_key) if isinstance(next_wallet_private_key, str) else 'N/A'}")
+
             # 创建钱包实例
             wallet = Wallet(use_testnet=False)
 
@@ -216,6 +243,7 @@ def claim_jager_airdrop_task(task_id, private_key, gas_price=None, gas_limit=Non
                 print(f"使用自定义 Gas 限制: {gas_limit}")
             else:
                 print("使用默认 Gas 限制: 1000000")
+                gas_limit = 1000000  # 设置默认值
 
             # 输出链式转账配置信息
             if enable_auto_transfer:
@@ -512,6 +540,25 @@ def transfer_bnb_task(task_id, private_key, to_address, amount, gas_price=None, 
     output_buffer = io.StringIO()
     with redirect_stdout(output_buffer):
         try:
+            # 记录参数信息（不包含私钥内容）
+            print(f"开始处理BNB转账任务，任务ID: {task_id}")
+            print(f"参数信息:")
+            print(f"- to_address: {to_address}")
+            print(f"- amount: {amount}")
+            print(f"- gas_price: {gas_price}")
+            print(f"- gas_limit: {gas_limit}")
+            print(f"- transfer_all: {transfer_all}")
+
+            # 检查私钥
+            if private_key is None:
+                print("错误: 私钥为空")
+                jager_tasks[task_id]['status'] = 'failed'
+                jager_tasks[task_id]['output'] = "错误: 私钥为空"
+                return
+
+            print(f"私钥类型: {type(private_key)}")
+            print(f"私钥长度: {len(private_key) if isinstance(private_key, str) else 'N/A'}")
+
             # 创建钱包实例
             wallet = Wallet(use_testnet=False)
 
@@ -593,6 +640,24 @@ def transfer_jager_task(task_id, private_key, to_address, amount, gas_price=None
     output_buffer = io.StringIO()
     with redirect_stdout(output_buffer):
         try:
+            # 记录参数信息（不包含私钥内容）
+            print(f"开始处理Jager代币转账任务，任务ID: {task_id}")
+            print(f"参数信息:")
+            print(f"- to_address: {to_address}")
+            print(f"- amount: {amount}")
+            print(f"- gas_price: {gas_price}")
+            print(f"- gas_limit: {gas_limit}")
+
+            # 检查私钥
+            if private_key is None:
+                print("错误: 私钥为空")
+                jager_tasks[task_id]['status'] = 'failed'
+                jager_tasks[task_id]['output'] = "错误: 私钥为空"
+                return
+
+            print(f"私钥类型: {type(private_key)}")
+            print(f"私钥长度: {len(private_key) if isinstance(private_key, str) else 'N/A'}")
+
             # 创建钱包实例
             wallet = Wallet(use_testnet=False)
 
@@ -615,6 +680,7 @@ def transfer_jager_task(task_id, private_key, to_address, amount, gas_price=None
                 print(f"使用自定义 Gas 限制: {gas_limit}")
             else:
                 print("使用默认 Gas 限制: 300000")
+                gas_limit = 300000  # 设置默认值
 
             # 转账Jager代币
             result = claimer.transfer_jager(to_address, amount, gas_price, gas_limit)
@@ -648,9 +714,20 @@ def transfer_index():
 def claim_jager():
     """领取Jager空投"""
     try:
+        # 记录请求参数（不包含私钥）
+        print(f"收到领取Jager空投请求，参数: {request.json}")
+
         private_key = request.json.get('private_key')
         gas_price = request.json.get('gas_price')
         gas_limit = request.json.get('gas_limit')
+
+        # 检查私钥
+        if private_key is None:
+            print("错误: 私钥为空")
+            return jsonify({'success': False, 'error': '请提供私钥'}), 400
+
+        print(f"私钥类型: {type(private_key)}")
+        print(f"私钥长度: {len(private_key) if isinstance(private_key, str) else 'N/A'}")
 
         # 获取自动转账相关参数
         enable_auto_transfer = request.json.get('enable_auto_transfer', False)
@@ -662,6 +739,11 @@ def claim_jager():
         enable_bnb_chain_transfer = request.json.get('enable_bnb_chain_transfer', False)
         transfer_bnb_on_failure = request.json.get('transfer_bnb_on_failure', False)
         next_wallet_private_key = request.json.get('next_wallet_private_key')
+
+        # 检查链式转账私钥
+        if next_wallet_private_key is not None:
+            print(f"下一个钱包私钥类型: {type(next_wallet_private_key)}")
+            print(f"下一个钱包私钥长度: {len(next_wallet_private_key) if isinstance(next_wallet_private_key, str) else 'N/A'}")
 
         if not private_key:
             return jsonify({'success': False, 'error': '请提供私钥'}), 400
@@ -891,4 +973,4 @@ def transfer_jager_async():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    app.run(host='0.0.0.0', port=8081, debug=True)
