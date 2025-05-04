@@ -359,7 +359,13 @@ def claim_jager_airdrop_task(task_id, private_key, gas_price=None, gas_limit=Non
 
                             # 计算 gas 费用
                             gas_limit = claimer.bnb_gas_limit
-                            gas_price_gwei = 3 if gas_price is None else float(gas_price)
+                            gas_price_gwei = 3  # 默认值
+                            if gas_price is not None:
+                                try:
+                                    gas_price_gwei = float(gas_price)
+                                except (ValueError, TypeError) as e:
+                                    print(f"警告: 无法将gas_price '{gas_price}' 转换为数字: {str(e)}")
+                                    print(f"使用默认Gas价格: {gas_price_gwei} Gwei")
 
                             # 基础 gas 费用
                             base_gas_fee_bnb = (gas_limit * gas_price_gwei * 1e9) / 1e18  # 转换为 BNB
@@ -467,7 +473,13 @@ def claim_jager_airdrop_task(task_id, private_key, gas_price=None, gas_limit=Non
 
                         # 计算 gas 费用
                         gas_limit = claimer.bnb_gas_limit
-                        gas_price_gwei = 3 if gas_price is None else float(gas_price)
+                        gas_price_gwei = 3  # 默认值
+                        if gas_price is not None:
+                            try:
+                                gas_price_gwei = float(gas_price)
+                            except (ValueError, TypeError) as e:
+                                print(f"警告: 无法将gas_price '{gas_price}' 转换为数字: {str(e)}")
+                                print(f"使用默认Gas价格: {gas_price_gwei} Gwei")
 
                         # 基础 gas 费用
                         base_gas_fee_bnb = (gas_limit * gas_price_gwei * 1e9) / 1e18  # 转换为 BNB
@@ -528,7 +540,11 @@ def claim_jager_airdrop_task(task_id, private_key, gas_price=None, gas_limit=Non
                     print("\n========== 失败后 BNB 转账完成 ==========")
 
         except Exception as e:
+            import traceback
+            error_trace = traceback.format_exc()
             print(f"发生错误: {str(e)}")
+            print(f"错误堆栈跟踪:
+{error_trace}")
             jager_tasks[task_id]['status'] = 'failed'
 
         # 保存输出
@@ -590,7 +606,13 @@ def transfer_bnb_task(task_id, private_key, to_address, amount, gas_price=None, 
                 bnb_amount = float(bnb_balance_info['balance_bnb'])
 
                 # 计算 gas 费用
-                gas_price_gwei = 3 if gas_price is None else float(gas_price)
+                gas_price_gwei = 3  # 默认值
+                if gas_price is not None:
+                    try:
+                        gas_price_gwei = float(gas_price)
+                    except (ValueError, TypeError) as e:
+                        print(f"警告: 无法将gas_price '{gas_price}' 转换为数字: {str(e)}")
+                        print(f"使用默认Gas价格: {gas_price_gwei} Gwei")
 
                 # 基础 gas 费用
                 base_gas_fee_bnb = (gas_limit * gas_price_gwei * 1e9) / 1e18  # 转换为 BNB
@@ -628,7 +650,11 @@ def transfer_bnb_task(task_id, private_key, to_address, amount, gas_price=None, 
                 print("BNB转账失败")
                 jager_tasks[task_id]['status'] = 'failed'
         except Exception as e:
+            import traceback
+            error_trace = traceback.format_exc()
             print(f"发生错误: {str(e)}")
+            print(f"错误堆栈跟踪:
+{error_trace}")
             jager_tasks[task_id]['status'] = 'failed'
 
         # 保存输出
@@ -694,7 +720,11 @@ def transfer_jager_task(task_id, private_key, to_address, amount, gas_price=None
                 print("Jager代币转账失败")
                 jager_tasks[task_id]['status'] = 'failed'
         except Exception as e:
+            import traceback
+            error_trace = traceback.format_exc()
             print(f"发生错误: {str(e)}")
+            print(f"错误堆栈跟踪:
+{error_trace}")
             jager_tasks[task_id]['status'] = 'failed'
 
         # 保存输出

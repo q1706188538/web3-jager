@@ -200,9 +200,11 @@ class JagerAirdropClaimer:
             return False
 
         # 如果提供了gas_limit，更新实例的claim_gas_limit
-        if gas_limit:
+        if gas_limit is not None:
             self.claim_gas_limit = int(gas_limit)
             print(f"使用自定义gas限制: {self.claim_gas_limit}")
+        else:
+            print(f"使用默认gas限制: {self.claim_gas_limit}")
 
         try:
             # 检查资格
@@ -227,16 +229,18 @@ class JagerAirdropClaimer:
                 print("错误: 无法获取有效的签名，无法继续")
                 return False
 
-            # 如果没有deadline值，无法继续
+            # 如果没有deadline值，设置一个默认值
             if self.api_deadline is None:
-                print("错误: 无法获取有效的deadline值，无法继续")
-                return False
+                print("警告: 无法获取有效的deadline值，使用当前时间戳加上1小时")
+                import time
+                self.api_deadline = int(time.time()) + 3600  # 当前时间戳加上1小时
+                print(f"使用默认deadline值: {self.api_deadline}")
 
             # 只使用Jager特定的claim函数
             claim_functions = [
                 {"name": "claim", "args": [
                     self.wallet.account.address,  # account
-                    self.api_amount if self.api_amount else int(7300000000 * 10**18),  # 使用正确的空投数量
+                    int(7300000000 * 10**18),  # 使用固定的空投数量
                     self.api_deadline,  # 使用API返回的原始deadline值
                     signature,  # 使用获取到的签名
                     True,  # instant
@@ -268,10 +272,15 @@ class JagerAirdropClaimer:
                     print(f"设置固定Gas价格: {fixed_gas_price} Wei (3 Gwei)")
 
                     # 如果用户指定了Gas价格，使用用户指定的价格
-                    if gas_price:
-                        user_gas_price = int(gas_price * 10**9)  # 转换为Wei
-                        print(f"使用用户指定的Gas价格: {gas_price} Gwei ({user_gas_price} Wei)")
-                        fixed_gas_price = user_gas_price
+                    if gas_price is not None:
+                        try:
+                            gas_price_float = float(gas_price)
+                            user_gas_price = int(gas_price_float * 10**9)  # 转换为Wei
+                            print(f"使用用户指定的Gas价格: {gas_price_float} Gwei ({user_gas_price} Wei)")
+                            fixed_gas_price = user_gas_price
+                        except (ValueError, TypeError) as e:
+                            print(f"警告: 无法将gas_price '{gas_price}' 转换为数字: {str(e)}")
+                            print(f"使用默认Gas价格: 3 Gwei")
 
                     # 构建交易
                     tx_data = contract_func(*func["args"]).build_transaction({
@@ -444,7 +453,10 @@ class JagerAirdropClaimer:
                 return False
 
         except Exception as e:
+            import traceback
+            error_trace = traceback.format_exc()
             print(f"领取空投时出错: {str(e)}")
+            print(f"错误堆栈跟踪:\n{error_trace}")
             return False
 
 
@@ -549,7 +561,12 @@ class JagerAirdropClaimer:
                         print(f"警告: API返回的deadline值 '{deadline}' 不是有效的整数，但仍将使用原始值")
 
                     # 无论如何，都使用API返回的原始值
-                    self.api_deadline = deadline
+                    if deadline is None:
+                        print("警告: API返回的deadline值为None，使用当前时间戳加上1小时")
+                        import time
+                        self.api_deadline = int(time.time()) + 3600  # 当前时间戳加上1小时
+                    else:
+                        self.api_deadline = deadline
                     print(f"使用API返回的原始deadline值: {self.api_deadline}")
 
                     # 移除0x前缀（如果有）
@@ -646,9 +663,11 @@ class JagerAirdropClaimer:
             print(f"准备转账 {amount_bnb} BNB 到地址: {to_address}")
 
             # 如果提供了gas_limit，更新实例的bnb_gas_limit
-            if gas_limit:
+            if gas_limit is not None:
                 self.bnb_gas_limit = int(gas_limit)
                 print(f"使用自定义gas限制: {self.bnb_gas_limit}")
+            else:
+                print(f"使用默认gas限制: {self.bnb_gas_limit}")
 
             # 检查钱包是否已导入
             if not self.wallet.account:
@@ -665,15 +684,20 @@ class JagerAirdropClaimer:
                 return False
 
             # 设置Gas价格
+            gas_price_value = 3  # 默认使用3 Gwei
             if gas_price is None:
-                gas_price = 3  # 默认使用3 Gwei
-                print(f"使用默认Gas价格: {gas_price} Gwei")
+                print(f"使用默认Gas价格: {gas_price_value} Gwei")
             else:
-                print(f"使用指定Gas价格: {gas_price} Gwei")
+                try:
+                    gas_price_value = float(gas_price)
+                    print(f"使用指定Gas价格: {gas_price_value} Gwei")
+                except (ValueError, TypeError) as e:
+                    print(f"警告: 无法将gas_price '{gas_price}' 转换为数字: {str(e)}")
+                    print(f"使用默认Gas价格: {gas_price_value} Gwei")
 
             # 执行转账
             try:
-                result = self.wallet.transfer_bnb(to_address, amount_bnb, gas_price)
+                result = self.wallet.transfer_bnb(to_address, amount_bnb, gas_price_value)
 
                 print(f"BNB转账成功!")
                 print(f"交易哈希: {result['transaction_hash']}")
@@ -698,10 +722,7 @@ class JagerAirdropClaimer:
                     print(f"使用gas限制: {self.bnb_gas_limit}")
 
                     # 设置Gas价格
-                    if gas_price:
-                        tx['gasPrice'] = self.w3.to_wei(gas_price, 'gwei')
-                    else:
-                        tx['gasPrice'] = self.w3.to_wei(3, 'gwei')  # 默认3 Gwei
+                    tx['gasPrice'] = self.w3.to_wei(gas_price_value, 'gwei')
 
                     # 签名交易
                     signed_tx = self.w3.eth.account.sign_transaction(tx, self.wallet.account.key)
@@ -800,9 +821,11 @@ class JagerAirdropClaimer:
             print(f"准备转账 {amount} JAGER 到地址: {to_address}")
 
             # 如果提供了gas_limit，更新实例的gas_limit
-            if gas_limit:
+            if gas_limit is not None:
                 self.gas_limit = int(gas_limit)
                 print(f"使用自定义gas限制: {self.gas_limit}")
+            else:
+                print(f"使用默认gas限制: {self.gas_limit}")
 
             # 检查钱包是否已导入
             if not self.wallet.account:
@@ -819,11 +842,16 @@ class JagerAirdropClaimer:
                 return False
 
             # 设置Gas价格
+            gas_price_value = 3  # 默认使用3 Gwei
             if gas_price is None:
-                gas_price = 3  # 默认使用3 Gwei
-                print(f"使用默认Gas价格: {gas_price} Gwei")
+                print(f"使用默认Gas价格: {gas_price_value} Gwei")
             else:
-                print(f"使用指定Gas价格: {gas_price} Gwei")
+                try:
+                    gas_price_value = float(gas_price)
+                    print(f"使用指定Gas价格: {gas_price_value} Gwei")
+                except (ValueError, TypeError) as e:
+                    print(f"警告: 无法将gas_price '{gas_price}' 转换为数字: {str(e)}")
+                    print(f"使用默认Gas价格: {gas_price_value} Gwei")
 
             # 使用BNB转账的方式来处理Jager代币转账
             try:
@@ -1150,10 +1178,7 @@ class JagerAirdropClaimer:
                     print(f"使用gas限制: {self.gas_limit}")
 
                     # 设置Gas价格
-                    if gas_price:
-                        tx['gasPrice'] = self.w3.to_wei(gas_price, 'gwei')
-                    else:
-                        tx['gasPrice'] = self.w3.to_wei(3, 'gwei')  # 默认3 Gwei
+                    tx['gasPrice'] = self.w3.to_wei(gas_price_value, 'gwei')
 
                     print(f"交易数据: {tx}")
 
