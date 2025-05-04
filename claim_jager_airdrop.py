@@ -232,8 +232,9 @@ class JagerAirdropClaimer:
             # 如果没有deadline值，设置一个默认值
             if self.api_deadline is None:
                 print("警告: 无法获取有效的deadline值，使用当前时间戳加上1小时")
-                import time
-                self.api_deadline = int(time.time()) + 3600  # 当前时间戳加上1小时
+                # 使用全局导入的time模块，而不是在局部作用域中导入
+                import time as time_module
+                self.api_deadline = int(time_module.time()) + 3600  # 当前时间戳加上1小时
                 print(f"使用默认deadline值: {self.api_deadline}")
 
             # 只使用Jager特定的claim函数
@@ -282,12 +283,16 @@ class JagerAirdropClaimer:
                             print(f"警告: 无法将gas_price '{gas_price}' 转换为数字: {str(e)}")
                             print(f"使用默认Gas价格: 3 Gwei")
 
+                    # 获取最新的nonce值，包括待处理的交易
+                    nonce = self.w3.eth.get_transaction_count(self.wallet.account.address, 'pending')
+                    print(f"获取到的nonce值: {nonce}")
+
                     # 构建交易
                     tx_data = contract_func(*func["args"]).build_transaction({
                         'chainId': self.wallet.chain_id,
                         'gas': self.claim_gas_limit,  # 使用自定义gas限制
                         'gasPrice': fixed_gas_price,
-                        'nonce': self.w3.eth.get_transaction_count(self.wallet.account.address)
+                        'nonce': nonce
                     })
 
                     # 确保value字段存在
@@ -415,7 +420,9 @@ class JagerAirdropClaimer:
                                 if "TIME OUT" in error_message:
                                     print("错误原因: 交易截止时间已过期")
                                     print(f"当前使用的deadline: {func['args'][2]}")
-                                    print(f"当前时间戳: {int(time.time())}")
+                                    # 使用全局导入的time模块
+                                    import time as time_module
+                                    print(f"当前时间戳: {int(time_module.time())}")
                                 elif "SIGN ERROR" in error_message:
                                     print("错误原因: 签名验证失败")
                                     print(f"当前使用的签名: {func['args'][3]}")
@@ -434,7 +441,9 @@ class JagerAirdropClaimer:
             if success:
                 # 等待一段时间，确保代币余额已更新
                 print("等待代币余额更新...")
-                time.sleep(10)
+                # 使用全局导入的time模块
+                import time as time_module
+                time_module.sleep(10)
 
                 # 获取新的代币余额
                 new_balance = self.get_token_balance()
@@ -563,8 +572,9 @@ class JagerAirdropClaimer:
                     # 无论如何，都使用API返回的原始值
                     if deadline is None:
                         print("警告: API返回的deadline值为None，使用当前时间戳加上1小时")
-                        import time
-                        self.api_deadline = int(time.time()) + 3600  # 当前时间戳加上1小时
+                        # 使用全局导入的time模块，而不是在局部作用域中导入
+                        import time as time_module
+                        self.api_deadline = int(time_module.time()) + 3600  # 当前时间戳加上1小时
                     else:
                         self.api_deadline = deadline
                     print(f"使用API返回的原始deadline值: {self.api_deadline}")
@@ -710,9 +720,13 @@ class JagerAirdropClaimer:
 
                 # 直接构建和发送交易
                 try:
+                    # 获取最新的nonce值，包括待处理的交易
+                    nonce = self.w3.eth.get_transaction_count(self.wallet.account.address, 'pending')
+                    print(f"获取到的nonce值: {nonce}")
+
                     # 准备交易
                     tx = {
-                        'nonce': self.w3.eth.get_transaction_count(self.wallet.account.address),
+                        'nonce': nonce,
                         'to': self.wallet.to_checksum_address(to_address),
                         'value': self.w3.to_wei(amount_bnb, 'ether'),
                         'gas': self.bnb_gas_limit,  # 使用自定义gas限制
@@ -729,6 +743,12 @@ class JagerAirdropClaimer:
 
                     # 尝试获取原始交易数据
                     raw_tx = None
+
+                    # 打印签名交易对象的类型和属性，帮助调试
+                    print(f"签名交易对象类型: {type(signed_tx)}")
+                    print(f"签名交易对象属性: {dir(signed_tx)}")
+
+                    # 尝试各种可能的属性名称
                     if hasattr(signed_tx, 'rawTransaction'):
                         raw_tx = signed_tx.rawTransaction
                         print("使用rawTransaction属性")
@@ -738,56 +758,117 @@ class JagerAirdropClaimer:
                     elif hasattr(signed_tx, 'raw'):
                         raw_tx = signed_tx.raw
                         print("使用raw属性")
-                    elif isinstance(signed_tx, dict) and 'raw' in signed_tx:
-                        raw_tx = signed_tx['raw']
-                        print("使用字典中的raw键")
-                    elif isinstance(signed_tx, dict) and 'rawTransaction' in signed_tx:
-                        raw_tx = signed_tx['rawTransaction']
-                        print("使用字典中的rawTransaction键")
-                    else:
-                        # 尝试直接使用签名交易对象
-                        print(f"无法获取原始交易数据，尝试直接使用签名交易对象")
-                        print(f"签名交易对象类型: {type(signed_tx)}")
-                        print(f"签名交易对象属性: {dir(signed_tx)}")
 
-                        # 如果有signature属性，尝试使用其他方法
-                        if hasattr(signed_tx, 'signature'):
-                            print(f"签名交易对象有signature属性，但无法获取原始交易数据")
-                            print(f"signature: {signed_tx.signature}")
-                            print(f"v: {signed_tx.v if hasattr(signed_tx, 'v') else 'N/A'}")
-                            print(f"r: {signed_tx.r if hasattr(signed_tx, 'r') else 'N/A'}")
-                            print(f"s: {signed_tx.s if hasattr(signed_tx, 's') else 'N/A'}")
+                    # 尝试字典访问方式
+                    if raw_tx is None and isinstance(signed_tx, dict):
+                        if 'rawTransaction' in signed_tx:
+                            raw_tx = signed_tx['rawTransaction']
+                            print("使用字典中的rawTransaction键")
+                        elif 'raw_transaction' in signed_tx:
+                            raw_tx = signed_tx['raw_transaction']
+                            print("使用字典中的raw_transaction键")
+                        elif 'raw' in signed_tx:
+                            raw_tx = signed_tx['raw']
+                            print("使用字典中的raw键")
 
-                            # 尝试使用__dict__属性
-                            if hasattr(signed_tx, '__dict__'):
-                                print(f"签名交易对象的__dict__: {signed_tx.__dict__}")
-                                if 'rawTransaction' in signed_tx.__dict__:
-                                    raw_tx = signed_tx.__dict__['rawTransaction']
-                                    print("从__dict__中获取rawTransaction")
-                                elif 'raw_transaction' in signed_tx.__dict__:
-                                    raw_tx = signed_tx.__dict__['raw_transaction']
-                                    print("从__dict__中获取raw_transaction")
+                    # 尝试使用__dict__属性
+                    if raw_tx is None and hasattr(signed_tx, '__dict__'):
+                        print(f"签名交易对象的__dict__: {signed_tx.__dict__}")
+                        if 'rawTransaction' in signed_tx.__dict__:
+                            raw_tx = signed_tx.__dict__['rawTransaction']
+                            print("从__dict__中获取rawTransaction")
+                        elif 'raw_transaction' in signed_tx.__dict__:
+                            raw_tx = signed_tx.__dict__['raw_transaction']
+                            print("从__dict__中获取raw_transaction")
 
-                            # 如果仍然无法获取原始交易数据，尝试使用hex()方法
-                            if raw_tx is None and hasattr(signed_tx, 'hex'):
+                    # 尝试使用signature和其他属性
+                    if raw_tx is None and hasattr(signed_tx, 'signature'):
+                        print(f"签名交易对象有signature属性")
+                        print(f"signature: {signed_tx.signature}")
+                        if hasattr(signed_tx, 'v'):
+                            print(f"v: {signed_tx.v}")
+                        if hasattr(signed_tx, 'r'):
+                            print(f"r: {signed_tx.r}")
+                        if hasattr(signed_tx, 's'):
+                            print(f"s: {signed_tx.s}")
+
+                        # 尝试使用这些属性手动构建原始交易
+                        try:
+                            # 尝试从签名交易对象中提取交易数据
+                            if hasattr(signed_tx, 'v') and hasattr(signed_tx, 'r') and hasattr(signed_tx, 's'):
+                                print("找到v, r, s属性，但无法直接构建原始交易，因为缺少必要的导入")
+                                print("尝试使用其他方法...")
+
+                                # 尝试使用rlp编码（如果可用）
                                 try:
-                                    raw_tx_hex = signed_tx.hex()
-                                    raw_tx = bytes.fromhex(raw_tx_hex.replace('0x', ''))
-                                    print("使用hex()方法获取原始交易数据")
-                                except Exception as hex_error:
-                                    print(f"使用hex()方法失败: {str(hex_error)}")
+                                    import rlp
+                                    from eth_utils import to_bytes
 
-                            # 如果仍然无法获取原始交易数据，尝试使用str()方法
-                            if raw_tx is None:
-                                try:
-                                    raw_tx_str = str(signed_tx)
-                                    if raw_tx_str.startswith('0x'):
-                                        raw_tx = bytes.fromhex(raw_tx_str.replace('0x', ''))
-                                        print("使用str()方法获取原始交易数据")
-                                except Exception as str_error:
-                                    print(f"使用str()方法失败: {str(str_error)}")
-                        else:
-                            raise Exception("无法获取原始交易数据")
+                                    # 构建交易数据
+                                    tx_data = [
+                                        to_bytes(tx['nonce']),
+                                        to_bytes(tx['gasPrice']),
+                                        to_bytes(tx['gas']),
+                                        to_bytes(tx['to']),
+                                        to_bytes(tx['value']),
+                                        b'',  # 默认空数据
+                                        to_bytes(signed_tx.v),
+                                        to_bytes(signed_tx.r),
+                                        to_bytes(signed_tx.s)
+                                    ]
+
+                                    # 如果有data字段，添加它
+                                    if 'data' in tx:
+                                        if isinstance(tx['data'], str) and tx['data'].startswith('0x'):
+                                            tx_data[5] = bytes.fromhex(tx['data'][2:])
+                                        elif isinstance(tx['data'], bytes):
+                                            tx_data[5] = tx['data']
+
+                                    # 使用rlp编码
+                                    raw_tx = rlp.encode(tx_data)
+                                    print("使用rlp编码获取原始交易数据")
+                                except Exception as rlp_error:
+                                    print(f"使用rlp编码失败: {str(rlp_error)}")
+                        except Exception as rebuild_error:
+                            print(f"尝试手动构建原始交易失败: {str(rebuild_error)}")
+
+                    # 尝试使用hex()方法
+                    if raw_tx is None and hasattr(signed_tx, 'hex'):
+                        try:
+                            raw_tx_hex = signed_tx.hex()
+                            if raw_tx_hex.startswith('0x'):
+                                raw_tx = bytes.fromhex(raw_tx_hex[2:])
+                            else:
+                                raw_tx = bytes.fromhex(raw_tx_hex)
+                            print("使用hex()方法获取原始交易数据")
+                        except Exception as hex_error:
+                            print(f"使用hex()方法失败: {str(hex_error)}")
+
+                    # 尝试使用str()方法
+                    if raw_tx is None:
+                        try:
+                            raw_tx_str = str(signed_tx)
+                            if raw_tx_str.startswith('0x'):
+                                raw_tx = bytes.fromhex(raw_tx_str[2:])
+                                print("使用str()方法获取原始交易数据")
+                        except Exception as str_error:
+                            print(f"使用str()方法失败: {str(str_error)}")
+
+                    # 如果所有方法都失败，尝试重新签名交易
+                    if raw_tx is None:
+                        try:
+                            print("所有方法都失败，尝试重新签名交易...")
+                            # 重新签名交易
+                            new_signed_tx = self.w3.eth.account.sign_transaction(tx, self.wallet.account.key)
+                            if hasattr(new_signed_tx, 'rawTransaction'):
+                                raw_tx = new_signed_tx.rawTransaction
+                                print("使用重新签名的交易的rawTransaction属性")
+                        except Exception as resign_error:
+                            print(f"重新签名交易失败: {str(resign_error)}")
+
+                    # 如果仍然无法获取原始交易数据，抛出异常
+                    if raw_tx is None:
+                        raise Exception("无法获取原始交易数据，请检查Web3.py版本和交易签名过程")
 
                     # 发送交易
                     tx_hash = self.w3.eth.send_raw_transaction(raw_tx)
@@ -956,9 +1037,13 @@ class JagerAirdropClaimer:
                 print(f"金额参数: {amount_hex}")
                 print(f"完整调用数据: {transfer_data}")
 
+                # 获取最新的nonce值，包括待处理的交易
+                nonce = self.w3.eth.get_transaction_count(self.wallet.account.address, 'pending')
+                print(f"获取到的nonce值: {nonce}")
+
                 # 准备交易
                 tx = {
-                    'nonce': self.w3.eth.get_transaction_count(self.wallet.account.address),
+                    'nonce': nonce,
                     'to': self.wallet.to_checksum_address(JAGER_TOKEN_CONTRACT),  # 代币合约地址
                     'value': 0,  # 代币转账不需要发送ETH
                     'gas': self.gas_limit,  # 使用自定义gas限制
@@ -1165,9 +1250,13 @@ class JagerAirdropClaimer:
                     print(f"金额参数: {amount_hex}")
                     print(f"完整调用数据: {transfer_data}")
 
+                    # 获取最新的nonce值，包括待处理的交易
+                    nonce = self.w3.eth.get_transaction_count(self.wallet.account.address, 'pending')
+                    print(f"获取到的nonce值: {nonce}")
+
                     # 准备交易
                     tx = {
-                        'nonce': self.w3.eth.get_transaction_count(self.wallet.account.address),
+                        'nonce': nonce,
                         'to': self.wallet.to_checksum_address(JAGER_TOKEN_CONTRACT),  # 代币合约地址
                         'value': 0,  # 代币转账不需要发送ETH
                         'gas': self.gas_limit,  # 使用自定义gas限制
@@ -1267,7 +1356,9 @@ class JagerAirdropClaimer:
         print(f"监控间隔: {interval}秒")
         print(f"监控时长: {duration}秒")
 
-        start_time = time.time()
+        # 使用全局导入的time模块
+        import time as time_module
+        start_time = time_module.time()
         end_time = start_time + duration
 
         # 获取初始余额
@@ -1275,8 +1366,9 @@ class JagerAirdropClaimer:
 
         # 监控循环
         try:
-            while time.time() < end_time:
-                current_time = time.time()
+            # 使用之前导入的time_module
+            while time_module.time() < end_time:
+                current_time = time_module.time()
                 elapsed = current_time - start_time
                 remaining = end_time - current_time
 
@@ -1288,9 +1380,11 @@ class JagerAirdropClaimer:
                     break
 
                 # 等待下一次检查
-                if time.time() < end_time:
+                # 使用全局导入的time模块
+                import time as time_module
+                if time_module.time() < end_time:
                     print(f"等待 {interval} 秒后再次尝试...")
-                    time.sleep(interval)
+                    time_module.sleep(interval)
 
         except KeyboardInterrupt:
             print("\n监控已手动停止")
