@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web3钱包 - BSC网络</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            padding-top: 20px;
+            padding-bottom: 40px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 960px;
+        }
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .card-header {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .alert {
+            margin-top: 20px;
+        }
+        .wallet-info {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .nav-tabs {
+            margin-bottom: 20px;
+        }
+        .tab-content {
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #dee2e6;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">Web3钱包 - BSC网络</h1>
+
+        <div class="card">
+            <div class="card-header">钱包管理</div>
+            <div class="card-body">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="useTestnet">
+                    <label class="form-check-label" for="useTestnet">使用测试网</label>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <button id="createWalletBtn" class="btn btn-primary w-100">创建新钱包</button>
+                    </div>
+                    <div class="col-md-6">
+                        <button id="importWalletBtn" class="btn btn-secondary w-100" data-bs-toggle="modal" data-bs-target="#importWalletModal">导入钱包</button>
+                    </div>
+                </div>
+
+                <div id="walletInfo" class="wallet-info mt-3" style="display: none;">
+                    <h5>钱包信息</h5>
+                    <div class="mb-2">
+                        <strong>地址:</strong> <span id="walletAddress"></span>
+                        <button class="btn btn-sm btn-outline-secondary ms-2" onclick="copyToClipboard('walletAddress')">复制</button>
+                    </div>
+                    <div>
+                        <strong>私钥:</strong> <span id="walletPrivateKey"></span>
+                        <button class="btn btn-sm btn-outline-secondary ms-2" onclick="copyToClipboard('walletPrivateKey')">复制</button>
+                        <small class="text-danger d-block mt-1">警告: 请妥善保管您的私钥，不要分享给任何人!</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert-info mb-3">
+            <strong>新功能!</strong> 现在您可以领取 Jager 空投了! <a href="/jager" class="alert-link">点击这里</a> 前往 Jager 空投领取页面。
+        </div>
+
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="balance-tab" data-bs-toggle="tab" data-bs-target="#balance" type="button" role="tab" aria-controls="balance" aria-selected="true">余额查询</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="transfer-tab" data-bs-toggle="tab" data-bs-target="#transfer" type="button" role="tab" aria-controls="transfer" aria-selected="false">转账</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="contract-tab" data-bs-toggle="tab" data-bs-target="#contract" type="button" role="tab" aria-controls="contract" aria-selected="false">合约交互</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link text-success" href="/jager">Jager空投</a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link text-primary" href="/transfer">代币转账</a>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="myTabContent">
+            <!-- 余额查询 -->
+            <div class="tab-pane fade show active" id="balance" role="tabpanel" aria-labelledby="balance-tab">
+                <div class="card">
+                    <div class="card-header">BNB余额查询</div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label for="bnbAddressInput">钱包地址 (可选，默认使用当前钱包)</label>
+                            <input type="text" class="form-control" id="bnbAddressInput" placeholder="输入BSC钱包地址">
+                        </div>
+                        <button id="checkBnbBalanceBtn" class="btn btn-primary">查询BNB余额</button>
+
+                        <div id="bnbBalanceResult" class="alert alert-info mt-3" style="display: none;"></div>
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-header">代币余额查询</div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label for="tokenAddressInput">代币合约地址</label>
+                            <input type="text" class="form-control" id="tokenAddressInput" placeholder="输入代币合约地址">
+                        </div>
+                        <div class="form-group">
+                            <label for="tokenWalletAddressInput">钱包地址 (可选，默认使用当前钱包)</label>
+                            <input type="text" class="form-control" id="tokenWalletAddressInput" placeholder="输入BSC钱包地址">
+                        </div>
+                        <button id="checkTokenBalanceBtn" class="btn btn-primary">查询代币余额</button>
+
+                        <div id="tokenBalanceResult" class="alert alert-info mt-3" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 转账 -->
+            <div class="tab-pane fade" id="transfer" role="tabpanel" aria-labelledby="transfer-tab">
+                <div class="card">
+                    <div class="card-header">BNB转账</div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label for="bnbRecipientInput">接收地址</label>
+                            <input type="text" class="form-control" id="bnbRecipientInput" placeholder="输入接收方BSC钱包地址">
+                        </div>
+                        <div class="form-group">
+                            <label for="bnbAmountInput">转账金额 (BNB)</label>
+                            <input type="number" class="form-control" id="bnbAmountInput" placeholder="输入BNB数量" step="0.000001" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="bnbGasPriceInput">Gas价格 (Gwei, 可选)</label>
+                            <input type="number" class="form-control" id="bnbGasPriceInput" placeholder="输入Gas价格" step="0.1" min="0">
+                        </div>
+                        <button id="transferBnbBtn" class="btn btn-primary">转账BNB</button>
+
+                        <div id="bnbTransferResult" class="alert alert-info mt-3" style="display: none;"></div>
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-header">代币转账</div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label for="tokenContractInput">代币合约地址</label>
+                            <input type="text" class="form-control" id="tokenContractInput" placeholder="输入代币合约地址">
+                        </div>
+                        <div class="form-group">
+                            <label for="tokenRecipientInput">接收地址</label>
+                            <input type="text" class="form-control" id="tokenRecipientInput" placeholder="输入接收方BSC钱包地址">
+                        </div>
+                        <div class="form-group">
+                            <label for="tokenAmountInput">转账金额</label>
+                            <input type="number" class="form-control" id="tokenAmountInput" placeholder="输入代币数量" step="0.000001" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="tokenGasPriceInput">Gas价格 (Gwei, 可选)</label>
+                            <input type="number" class="form-control" id="tokenGasPriceInput" placeholder="输入Gas价格" step="0.1" min="0">
+                        </div>
+                        <button id="transferTokenBtn" class="btn btn-primary">转账代币</button>
+
+                        <div id="tokenTransferResult" class="alert alert-info mt-3" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 合约交互 -->
+            <div class="tab-pane fade" id="contract" role="tabpanel" aria-labelledby="contract-tab">
+                <div class="card">
+                    <div class="card-header">智能合约交互</div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label for="contractAddressInput">合约地址</label>
+                            <input type="text" class="form-control" id="contractAddressInput" placeholder="输入合约地址">
+                        </div>
+                        <div class="form-group">
+                            <label for="contractAbiInput">合约ABI</label>
+                            <textarea class="form-control" id="contractAbiInput" rows="4" placeholder="输入合约ABI (JSON格式)"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="contractFunctionInput">函数名称</label>
+                            <input type="text" class="form-control" id="contractFunctionInput" placeholder="输入要调用的函数名称">
+                        </div>
+                        <div class="form-group">
+                            <label for="contractArgsInput">函数参数 (JSON数组格式)</label>
+                            <textarea class="form-control" id="contractArgsInput" rows="2" placeholder='例如: ["0x123...", 100]'></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="contractValueInput">发送的BNB数量 (可选)</label>
+                            <input type="number" class="form-control" id="contractValueInput" placeholder="如果需要发送BNB，请输入数量" step="0.000001" min="0">
+                        </div>
+                        <button id="callContractBtn" class="btn btn-primary">调用合约</button>
+
+                        <div id="contractResult" class="alert alert-info mt-3" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 导入钱包模态框 -->
+        <div class="modal fade" id="importWalletModal" tabindex="-1" aria-labelledby="importWalletModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="importWalletModalLabel">导入钱包</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="privateKeyInput">私钥</label>
+                            <input type="text" class="form-control" id="privateKeyInput" placeholder="输入私钥">
+                            <small class="text-danger">警告: 请确保在安全的环境中输入您的私钥!</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="button" class="btn btn-primary" id="confirmImportBtn">导入</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/app.js"></script>
+</body>
+</html>
